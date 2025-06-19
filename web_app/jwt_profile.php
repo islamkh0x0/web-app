@@ -1,44 +1,45 @@
 <?php
-session_start();
 require_once 'config.php';
+require 'jwt_middleware.php';
 
-// Check if user is logged in
-if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
-    exit();
-}
+// Verify JWT
+$user = verifyJWT();
 
 // Get user ID to display (own profile or another user's)
-$user_id = isset($_GET['user_id']) ? $_GET['user_id'] : $_SESSION['user_id'];
+$user_id = isset($_GET['user_id']) ? $_GET['user_id'] : $user['user_id'];
 
-// Get user info (vulnerable to SQL Injection)
-$query = "SELECT username, profile_picture FROM users WHERE id = $user_id";
+// Sanitize user_id
+$user_id = mysqli_real_escape_string($conn, $user_id);
+
+// Get user info
+$query = "SELECT username, profile_picture FROM users WHERE id = '$user_id'";
 $result = mysqli_query($conn, $query);
-$user = mysqli_fetch_assoc($result);
-if (!$user) {
-    $_SESSION['error'] = "User not found.";
-    header("Location: profile.php");
-    exit();
+$user_data = mysqli_fetch_assoc($result);
+if (!$user_data) {
+    http_response_code(404);
+    echo json_encode(['message' => 'User not found']);
+    exit;
 }
 
 // Get user posts
-$query = "SELECT id, content, created_at FROM posts WHERE user_id = $user_id ORDER BY created_at DESC";
+$query = "SELECT id, content, created_at FROM posts WHERE user_id = '$user_id' ORDER BY created_at DESC";
 $posts_result = mysqli_query($conn, $query);
 
 // Get followers count
-$query = "SELECT COUNT(*) as follower_count FROM followers WHERE followed_id = $user_id";
+$query = "SELECT COUNT(*) as follower_count FROM followers WHERE followed_id = '$user_id'";
 $follower_result = mysqli_query($conn, $query);
 $follower_count = mysqli_fetch_assoc($follower_result)['follower_count'];
 
 // Get following count
-$query = "SELECT COUNT(*) as following_count FROM followers WHERE follower_id = $user_id";
+$query = "SELECT COUNT(*) as following_count FROM followers WHERE follower_id = '$user_id'";
 $following_result = mysqli_query($conn, $query);
 $following_count = mysqli_fetch_assoc($following_result)['following_count'];
 
 // Check if current user is following this user
 $is_following = false;
-if ($user_id != $_SESSION['user_id']) {
-    $query = "SELECT * FROM followers WHERE follower_id = {$_SESSION['user_id']} AND followed_id = $user_id";
+if ($user_id != $user['user_id']) {
+    $current_user_id = mysqli_real_escape_string($conn, $user['user_id']);
+    $query = "SELECT * FROM followers WHERE follower_id = '$current_user_id' AND followed_id = '$user_id'";
     $result = mysqli_query($conn, $query);
     if (mysqli_num_rows($result) > 0) {
         $is_following = true;
@@ -50,22 +51,22 @@ if ($user_id != $_SESSION['user_id']) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Profile</title>
+    <title>JWT Profile</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
-        <h2><?php echo htmlspecialchars($user['username']); ?>'s Profile</h2>
+        <h2><?php echo htmlspecialchars($user_data['username']); ?>'s Profile</h2>
         
         <!-- Display Profile Picture -->
-        <?php if ($user['profile_picture']) { ?>
-            <img src="<?php echo htmlspecialchars($user['profile_picture']); ?>" alt="Profile Picture" style="max-width: 200px;">
+        <?php if ($user_data['profile_picture']) { ?>
+            <img src="<?php echo htmlspecialchars($user_data['profile_picture']); ?>" alt="Profile Picture" style="max-width: 200px;">
         <?php } else { ?>
             <p>No profile picture uploaded.</p>
         <?php } ?>
         
         <!-- Upload Profile Picture Form (only for own profile) -->
-        <?php if ($user_id == $_SESSION['user_id']) { ?>
+        <?php if ($user_id == $user['user_id']) { ?>
             <h3>Upload Profile Picture</h3>
             <?php if (isset($_SESSION['upload_error'])) { ?>
                 <p style="color: red;"><?php echo $_SESSION['upload_error']; unset($_SESSION['upload_error']); ?></p>
@@ -85,18 +86,18 @@ if ($user_id != $_SESSION['user_id']) {
         <p>Followers: <?php echo $follower_count; ?> | Following: <?php echo $following_count; ?></p>
         
         <!-- Follow/Unfollow button -->
-        <?php if ($user_id != $_SESSION['user_id']) { ?>
+        <?php if ($user_id != $user['user_id']) { ?>
             <p>
                 <?php if ($is_following) { ?>
-                    <a href="follow_process.php?user_id=<?php echo $user_id; ?>&action=unfollow">Unfollow</a>
+                    <a href="jwt_follow_process.php?user_id=<?php echo $user_id; ?>&action=unfollow">Unfollow</a>
                 <?php } else { ?>
-                    <a href="follow_process.php?user_id=<?php echo $user_id; ?>&action=follow">Follow</a>
+                    <a href="jwt_follow_process.php?user_id=<?php echo $user_id; ?>&action=follow">Follow</a>
                 <?php } ?>
             </p>
         <?php } ?>
 
         <!-- Form to add a new post -->
-        <?php if ($user_id == $_SESSION['user_id']) { ?>
+        <?php if ($user_id == $user['user_id']) { ?>
             <form action="post_process.php" method="POST">
                 <div class="form-group">
                     <label for="content">New Post</label>
@@ -112,7 +113,7 @@ if ($user_id != $_SESSION['user_id']) {
         while ($post = mysqli_fetch_assoc($posts_result)) {
             echo "<div>";
             echo "<p>" . htmlspecialchars($post['content']) . "<br><small>" . $post['created_at'] . "</small></p>";
-            if ($user_id == $_SESSION['user_id']) {
+            if ($user_id == $user['user_id']) {
                 echo "<a href='edit_post.php?post_id=" . $post['id'] . "'>Edit</a> | ";
                 echo "<a href='delete_post.php?post_id=" . $post['id'] . "'>Delete</a>";
             }
@@ -122,12 +123,20 @@ if ($user_id != $_SESSION['user_id']) {
         <div class="links">
             <a href="blog.php">Blog</a> | 
             <a href="followers.php?user_id=<?php echo $user_id; ?>">View Followers</a> | 
-            <a href="profile.php">My Profile</a> | 
-            <?php if (isset($_SESSION['is_admin']) && $_SESSION['is_admin'] == 1) { ?>
+            <a href="jwt_profile.php">My Profile</a> | 
+            <?php if ($user['is_admin'] == 1) { ?>
                 <a href="admin_panel.php">Admin Panel</a> | 
             <?php } ?>
-            <a href="logout.php">Logout</a>
+            <a href="javascript:logout()">Logout</a>
         </div>
     </div>
+    <script>
+        // Logout function
+        function logout() {
+            // Delete JWT cookie
+            document.cookie = 'jwt=; Max-Age=0; path=/';
+            window.location.href = 'jwt_login.php';
+        }
+    </script>
 </body>
 </html>

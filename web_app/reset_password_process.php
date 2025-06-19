@@ -2,39 +2,37 @@
 session_start();
 require_once 'config.php';
 
-// Check if form is submitted
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $token = $_POST['token'];
-    $password = $_POST['password'];
+    $token = $_POST['token'] ?? '';
+    $new_password = $_POST['password'] ?? '';
 
-    
-    if (!$token || !$password) {
-        $_SESSION['error'] = "Token and password are required.";
+    if (!$token || !$new_password) {
+        $_SESSION['error'] = "Token and new password are required.";
         header("Location: reset_password.php");
         exit();
     }
 
-    
-    $query = "SELECT * FROM password_resets WHERE token = '$token'";
+    //token check
+    $token = mysqli_real_escape_string($conn, $token);
+    $query = "SELECT email FROM password_resets WHERE token = '$token'";
     $result = mysqli_query($conn, $query);
-    $reset = mysqli_fetch_assoc($result);
+    $row = mysqli_fetch_assoc($result);
 
-    if ($reset) {
-        
-        $email = $reset['email'];
-        $query = "UPDATE users SET password = '$password' WHERE email = '$email'";
-        if (mysqli_query($conn, $query)) {
-            // Delete token after use
-            $query = "DELETE FROM password_resets WHERE token = '$token'";
-            mysqli_query($conn, $query);
-            $_SESSION['success'] = "Password reset successfully.";
-            header("Location: login.php");
-            exit();
-        } else {
-            $_SESSION['error'] = "Failed to reset password.";
-            header("Location: reset_password.php");
-            exit();
-        }
+    if ($row) {
+        $email = $row['email'];
+        $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
+
+        // update pass
+        $update_query = "UPDATE users SET password = '$hashed_password' WHERE email = '$email'";
+        mysqli_query($conn, $update_query);
+
+        // delet after use
+        $delete_query = "DELETE FROM password_resets WHERE token = '$token'";
+        mysqli_query($conn, $delete_query);
+
+        $_SESSION['success'] = "Password has been reset successfully.";
+        header("Location: login.php");
+        exit();
     } else {
         $_SESSION['error'] = "Invalid or expired token.";
         header("Location: reset_password.php");
@@ -44,4 +42,3 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     header("Location: reset_password.php");
     exit();
 }
-?>
