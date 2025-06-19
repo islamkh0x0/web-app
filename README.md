@@ -66,15 +66,21 @@ The primary goal is to provide a hands-on tool for learning **web penetration te
 1. **Clone the Repository**:
 ```bash
    git clone https://github.com/islamkh0x0/web-app.git
-   cd web-app
-```
+   cd web-app 
+
+``` 
+ 
+
 
 2. **Install Dependencies**:
     
 ```bash
 composer require firebase/php-jwt
-composer require phpmailer/phpmailer
-```
+composer require phpmailer/phpmailer 
+
+``` 
+ 
+
     
 3. **Set Up XAMPP**:
     
