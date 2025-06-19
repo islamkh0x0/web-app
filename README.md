@@ -64,17 +64,17 @@ The primary goal is to provide a hands-on tool for learning **web penetration te
 ### Installation
 
 1. **Clone the Repository**:
-   ```bash
+```bash
    git clone https://github.com/islamkh0x0/web-app.git
    cd web-app
 ```
 
 2. **Install Dependencies**:
     
-    ```bash
-    composer require firebase/php-jwt
-    composer require phpmailer/phpmailer
-    ```
+```bash
+composer require firebase/php-jwt
+composer require phpmailer/phpmailer
+```
     
 3. **Set Up XAMPP**:
     
@@ -86,38 +86,39 @@ The primary goal is to provide a hands-on tool for learning **web penetration te
     - Create a database named `web_app`.
     - Run the following SQL to create tables:
         
-        ```sql
-        CREATE TABLE users (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            username VARCHAR(255) NOT NULL,
-            email VARCHAR(255) NOT NULL UNIQUE,
-            password VARCHAR(255) NOT NULL,
-            is_admin TINYINT DEFAULT 0,
-            profile_picture VARCHAR(255)
+```sql
+CREATE TABLE users (
+	id INT AUTO_INCREMENT PRIMARY KEY,
+	username VARCHAR(255) NOT NULL,
+	email VARCHAR(255) NOT NULL UNIQUE,
+	password VARCHAR(255) NOT NULL,
+	is_admin TINYINT DEFAULT 0,
+	profile_picture VARCHAR(255)
         );
         
-        CREATE TABLE posts (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            user_id INT,
-            content TEXT,
-            created_at DATETIME,
-            FOREIGN KEY (user_id) REFERENCES users(id)
+CREATE TABLE posts (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT,
+        content TEXT,
+        created_at DATETIME,
+        FOREIGN KEY (user_id) REFERENCES users(id)
         );
         
-        CREATE TABLE followers (
-            follower_id INT,
-            followed_id INT,
-            FOREIGN KEY (follower_id) REFERENCES users(id),
-            FOREIGN KEY (followed_id) REFERENCES users(id)
-        );
+CREATE TABLE followers (
+       follower_id INT,
+       followed_id INT,
+       FOREIGN KEY (follower_id) REFERENCES users(id),
+       FOREIGN KEY (followed_id) REFERENCES users(id)
+       );
         
-        CREATE TABLE password_resets (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            email VARCHAR(255) NOT NULL,
-            token VARCHAR(255) NOT NULL,
-            created_at DATETIME NOT NULL
-        );
-        ```
+CREATE TABLE password_resets (
+       id INT AUTO_INCREMENT PRIMARY KEY,
+       email VARCHAR(255) NOT NULL,
+       token VARCHAR(255) NOT NULL,
+       created_at DATETIME NOT NULL
+       ); 
+``` 
+
         
 5. **Configure Email for Password Reset**:
     
